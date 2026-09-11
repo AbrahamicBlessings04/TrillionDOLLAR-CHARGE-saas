@@ -1,0 +1,1424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Casefile — Queue</title>
+  <style>
+    :root {
+      --paper: #efe6d4;
+      --paper-deep: #e4d8c0;
+      --sheet: #f7f1e4;
+      --ink: #1b1712;
+      --ink-soft: #5a5348;
+      --rule: #c9b89a;
+      --rule-strong: #8d7b5e;
+      --fight: #1d3b2c;
+      --fight-wash: #d7e4da;
+      --refund: #2e3a4a;
+      --refund-wash: #dde3ea;
+      --protected: #6b1010;
+      --protected-deep: #4a0909;
+      --protected-gold: #f0c14b;
+      --protected-cream: #fff4d4;
+      --seal: #7a2e22;
+    }
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: radial-gradient(ellipse at 10% -10%, rgba(240, 193, 75, 0.12), transparent 42%), var(--paper);
+      font-family: "Segoe UI", system-ui, sans-serif;
+      font-size: 16px;
+      line-height: 1.45;
+    }
+    a { color: inherit; }
+    button, textarea, input, select { font: inherit; color: inherit; }
+    .shell { min-height: 100vh; }
+    .topbar {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 22px 32px 18px;
+      border-bottom: 1px solid var(--rule);
+    }
+    .brand { display: flex; flex-direction: column; gap: 2px; text-decoration: none; cursor: pointer; }
+    .brand-name {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1;
+    }
+    .brand-meta { color: var(--ink-soft); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+    .top-nav { color: var(--ink-soft); font-size: 14px; }
+    .top-nav a { text-decoration: none; cursor: pointer; }
+    .top-nav a.current { color: var(--ink); text-decoration: underline; text-underline-offset: 4px; }
+    .page { width: min(1120px, calc(100% - 48px)); margin: 0 auto; padding: 28px 0 72px; }
+    .page-head, .case-title {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 22px;
+    }
+    .case-title { align-items: flex-start; margin: 8px 0 22px; }
+    h1 {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 40px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+    }
+    .lede, .crumb { margin: 6px 0 0; color: var(--ink-soft); }
+    .crumb a { color: var(--ink-soft); text-decoration: none; cursor: pointer; }
+    .crumb a:hover { color: var(--ink); }
+    .stats { display: flex; gap: 28px; font-family: ui-monospace, "Cascadia Mono", monospace; font-size: 13px; }
+    .stats b { display: block; font-family: Georgia, serif; font-size: 22px; }
+    .page-head-actions { display: flex; align-items: flex-end; gap: 20px; }
+    .queue-alert {
+      display: flex; align-items: center; justify-content: space-between; gap: 20px;
+      margin-bottom: 18px; padding: 18px 20px;
+      color: var(--protected-cream); background: var(--protected);
+      border: 2px solid var(--protected-gold); text-decoration: none; cursor: pointer;
+    }
+    .queue-alert strong {
+      display: block; font-family: Georgia, serif; font-size: 26px; letter-spacing: -0.02em;
+    }
+    .queue-alert span {
+      color: var(--protected-gold); font-family: ui-monospace, monospace;
+      font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase;
+    }
+    .queue { display: flex; flex-direction: column; gap: 10px; }
+    .queue-row {
+      display: grid; grid-template-columns: 88px 1.4fr 140px 90px 110px 90px;
+      align-items: center; gap: 12px; padding: 16px 18px;
+      color: inherit; background: var(--sheet); border: 1px solid var(--rule);
+      text-decoration: none; cursor: pointer;
+    }
+    .queue-row:hover { border-color: var(--ink); }
+    .queue-row.protected {
+      grid-template-columns: 1fr; padding: 0; color: var(--protected-cream);
+      background: var(--protected-deep); border: 3px solid var(--protected-gold);
+      box-shadow: 0 0 0 6px rgba(107, 16, 16, 0.12);
+    }
+    .protected-inner {
+      display: grid; grid-template-columns: 88px 1.4fr 140px 90px 110px 90px;
+      align-items: center; gap: 12px; padding: 18px 18px 16px;
+    }
+    .protected-stamp {
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      padding: 14px 18px; background: var(--protected); border-bottom: 2px solid var(--protected-gold);
+    }
+    .protected-stamp b {
+      font-family: Georgia, serif; font-size: 28px; color: var(--protected-gold); text-transform: uppercase;
+    }
+    .protected-stamp em {
+      font-style: normal; font-family: ui-monospace, monospace; font-size: 12px;
+      letter-spacing: 0.06em; text-transform: uppercase;
+    }
+    .col-kicker {
+      color: var(--ink-soft); font-family: ui-monospace, monospace; font-size: 11px;
+      letter-spacing: 0.08em; text-transform: uppercase;
+    }
+    .queue-row.protected .col-kicker { color: #f3d59a; }
+    .col-value { display: block; margin-top: 2px; font-weight: 500; }
+    .col-value.serif { font-family: Georgia, serif; font-size: 20px; font-weight: 700; }
+    .verdict-chip {
+      display: inline-block; padding: 3px 8px; font-family: ui-monospace, monospace;
+      font-size: 12px; letter-spacing: 0.04em;
+    }
+    .verdict-chip.FIGHT { color: var(--fight); background: var(--fight-wash); }
+    .verdict-chip.REFUND { color: var(--refund); background: var(--refund-wash); }
+    .verdict-chip.ASK, .verdict-chip.HUMAN_REVIEW { color: var(--ink); background: var(--paper-deep); }
+    .queue-row.protected .verdict-chip { color: var(--protected-deep); background: var(--protected-gold); }
+    .case-title p { margin: 8px 0 0; color: var(--ink-soft); }
+    .case-actions { display: flex; gap: 10px; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-height: 40px; padding: 8px 14px; color: var(--ink); background: var(--sheet);
+      border: 1px solid var(--ink); text-decoration: none; cursor: pointer;
+    }
+    .btn.primary { color: var(--sheet); background: var(--ink); }
+    .btn:hover { opacity: 0.88; }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .protected-banner {
+      margin-bottom: 20px; padding: 22px 24px; color: var(--protected-cream);
+      background: var(--protected); border: 3px solid var(--protected-gold);
+    }
+    .protected-banner .eyebrow {
+      margin: 0 0 6px; color: var(--protected-gold); font-family: ui-monospace, monospace;
+      font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase;
+    }
+    .protected-banner h2 {
+      margin: 0; font-family: Georgia, serif; font-size: 36px; letter-spacing: -0.03em;
+    }
+    .protected-banner p { max-width: 62ch; margin: 10px 0 0; }
+    .veto-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 16px; }
+    .veto-card { padding: 12px 14px; background: var(--protected-deep); border: 1px solid rgba(240, 193, 75, 0.45); }
+    .veto-card b { display: block; color: var(--protected-gold); font-size: 14px; }
+    .veto-card p { margin: 6px 0 0; font-size: 13px; }
+    .grid-2 { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 16px; margin-bottom: 16px; }
+    .panel, .match-block, .letters-card {
+      padding: 18px 20px 20px; background: var(--sheet); border: 1px solid var(--rule);
+    }
+    .panel h2, .match-block h2, .letters-card h2 {
+      margin: 0 0 12px; font-family: Georgia, serif; font-size: 22px;
+    }
+    .seal-row {
+      display: flex; justify-content: space-between; gap: 12px;
+      margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px dashed var(--rule-strong);
+      font-family: ui-monospace, monospace; font-size: 12px;
+    }
+    .seal-mark { color: var(--seal); letter-spacing: 0.08em; text-transform: uppercase; }
+    .kv { display: grid; grid-template-columns: 140px 1fr; gap: 8px 12px; margin: 0; }
+    .kv dt { color: var(--ink-soft); }
+    .kv dd { margin: 0; }
+    .cite-list, .evidence-list { margin: 0; padding: 0; list-style: none; }
+    .cite-list li, .evidence-list li {
+      margin: 0 0 12px; padding-bottom: 12px; border-bottom: 1px solid var(--paper-deep);
+    }
+    .cite-list li:last-child, .evidence-list li:last-child { margin: 0; padding: 0; border: 0; }
+    .evidence-id { display: inline-block; margin-right: 8px; font-family: ui-monospace, monospace; font-size: 11px; }
+    .cited { color: var(--fight); }
+    .match-block { margin-top: 8px; }
+    .match-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+    .order-card { padding: 14px 16px; background: var(--paper); border: 1px solid var(--rule); }
+    .order-card.disputed { background: #fffaf0; border-color: var(--ink); }
+    .order-card.fault { background: #f3ece4; }
+    .order-card h3 { display: flex; justify-content: space-between; gap: 8px; margin: 0 0 10px; font-size: 15px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .chip { padding: 2px 7px; font-family: ui-monospace, monospace; font-size: 11px; background: var(--fight-wash); }
+    .chip.miss { background: #eadfd0; color: var(--ink-soft); }
+    .note { margin: 12px 0 0; color: var(--ink-soft); font-size: 14px; }
+    .tickets { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+    .ticket { padding: 12px 14px; background: var(--paper); border-left: 3px solid var(--seal); }
+    .ticket .meta { color: var(--ink-soft); font-size: 13px; }
+    .letters-list { display: flex; flex-direction: column; gap: 16px; }
+    .letters-card header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+    .letters-card header h2 { margin: 0; }
+    .hint { margin: 0 0 10px; color: var(--ink-soft); font-size: 13px; }
+    textarea {
+      width: 100%; min-height: 140px; padding: 12px; color: var(--ink);
+      background: var(--paper); border: 1px solid var(--rule); resize: vertical;
+    }
+    textarea.merchant { min-height: 88px; }
+    .block-note { margin: 10px 0 0; padding: 10px 12px; color: var(--protected-cream); background: var(--protected); }
+    .empty { padding: 28px; color: var(--ink-soft); }
+    .form-panel { padding: 22px 24px 24px; background: var(--sheet); border: 1px solid var(--rule); }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 18px; }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field.wide { grid-column: 1 / -1; }
+    .field label {
+      color: var(--ink-soft); font-family: ui-monospace, monospace; font-size: 11px;
+      letter-spacing: 0.08em; text-transform: uppercase;
+    }
+    .field input, .field select {
+      min-height: 40px; padding: 8px 10px; background: var(--paper); border: 1px solid var(--rule);
+    }
+    .field input:focus, .field select:focus { outline: 2px solid var(--ink); outline-offset: 1px; }
+    .form-actions { display: flex; gap: 10px; margin-top: 20px; }
+    .missing-note {
+      margin: 0 0 16px; padding: 12px 14px; background: var(--paper);
+      border-left: 3px solid var(--rule-strong);
+    }
+    @media (max-width: 860px) {
+      .page { width: min(1120px, calc(100% - 28px)); }
+      .queue-row, .protected-inner { grid-template-columns: 1fr 1fr; }
+      .grid-2, .veto-list, .page-head, .case-title, .form-grid, .page-head-actions { display: grid; grid-template-columns: 1fr; }
+      .protected-stamp { flex-direction: column; align-items: flex-start; }
+      .protected-stamp b { font-size: 22px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+(function () {
+  var BANNED = ["fraud","fraudulent","thief","stole","stealing","lying","liar","scam","abuse","criminal"];
+  var CEDAR = "1847 Cedar Street, Portland, OR 97214";
+  var AUSTIN = "610 West Lynn Street, Austin, TX 78703";
+  var MIAMI = "22 Dockside Walk, Unit 4, Miami, FL 33132";
+  var MERCER = "88 Mercer Avenue, Brooklyn, NY 11231";
+
+  function usd(n) {
+    return n.toLocaleString("en-US", { style: "currency", currency: "USD" });
+  }
+  function day(iso) {
+    if (!iso) return "";
+    var p = iso.split("-").map(Number);
+    if (p.length < 3 || !p[0]) return "";
+    return new Date(Date.UTC(p[0], p[1] - 1, p[2])).toLocaleDateString("en-US", {
+      month: "short", day: "numeric", year: "numeric", timeZone: "UTC"
+    });
+  }
+  function esc(s) {
+    return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  }
+  function bannedHits(text) {
+    var lower = text.toLowerCase();
+    return BANNED.filter(function (w) { return new RegExp("\\b" + w + "\\b", "i").test(lower); });
+  }
+  function isBlank(v) {
+    return v == null || String(v).trim() === "";
+  }
+  function isUnknown(v) {
+    if (isBlank(v)) return true;
+    return String(v).trim().toLowerCase() === "unknown";
+  }
+  function countWord(n) {
+    var words = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
+    return words[n] != null ? words[n] : String(n);
+  }
+  function todayISO() {
+    return new Date().toISOString().slice(0, 10);
+  }
+  function addDaysISO(iso, n) {
+    var p = (iso || todayISO()).split("-").map(Number);
+    var dt = new Date(Date.UTC(p[0], p[1] - 1, p[2]));
+    dt.setUTCDate(dt.getUTCDate() + n);
+    return dt.toISOString().slice(0, 10);
+  }
+  function daysBetweenISO(from, to) {
+    var a = new Date(from + "T00:00:00Z").getTime();
+    var b = new Date(to + "T00:00:00Z").getTime();
+    return Math.round((b - a) / 86400000);
+  }
+  function joinSentences(parts) {
+    return parts.filter(function (p) { return p && String(p).trim(); }).map(function (p) {
+      p = String(p).trim();
+      return p.charAt(0).toUpperCase() + p.slice(1);
+    }).join(" ");
+  }
+
+  var CASES = [
+    {
+      id: "A", slug: "4821", title: "Fake dispute",
+      verdict: "FIGHT", confidence: 94, protectedVictim: false,
+      ruleApplied: "FIGHT — two-element prior-order match",
+      ruleWhy: "Delivery confirmed to the account address. Three prior undisputed orders in the 120–365 day window share login ID, device fingerprint, and shipping address. Device is one of the two required match elements. No victim-veto signal. Amount is above the fight minimum.",
+      daysRemaining: 14, deadline: "2026-09-16", sealedAt: "2026-03-08T14:22:11Z",
+      disputed: {
+        orderNumber: "4821", placedAt: "2026-02-28", amount: 312.4,
+        item: "Walnut serving board and linen runner",
+        customerName: "Jordan Hale", shippingAddress: CEDAR, billingAddress: CEDAR,
+        deviceFingerprint: "fp_8c21a9d4e1", checkoutIp: "73.25.118.44", checkoutIpCountry: "United States",
+        avs: "Match", cvv: "Match", cardLast4: "4412", cardFingerprint: "card_9f21",
+        carrier: "UPS", trackingNumber: "1Z999AA10123456784",
+        deliveryStatus: "Delivered, signed for", deliveredAt: "2026-03-03",
+        cardholderAnswer: "I bought this"
+      },
+      cited: [
+        { id: "EV-DELIVER", label: "Delivery confirmation", value: "UPS 1Z999AA10123456784 delivered 3 March 2026 to 1847 Cedar Street, Portland, OR 97214 — the address on the account. Signed J. Hale." },
+        { id: "EV-MATCH", label: "Prior-order two-element match", value: "Orders #3102, #3340, and #3611 are undisputed, sit in the 120–365 day window, and share login, device fp_8c21a9d4e1, and the Cedar Street address. Device is one of the two required match elements." },
+        { id: "EV-DEVICE", label: "Device fingerprint", value: "Disputed checkout used device fp_8c21a9d4e1 — the same device as the three in-window prior orders." },
+        { id: "EV-AMOUNT", label: "Order amount", value: "$312.40 — above the merchant fight minimum." },
+        { id: "EV-VETO-NONE", label: "Victim-veto scan", value: "No veto signal present on this case." }
+      ],
+      evidence: [
+        { id: "EV-A-DELIVER", label: "Delivery confirmation", value: "UPS 1Z999AA10123456784 delivered 3 March 2026 to 1847 Cedar Street, Portland, OR 97214 — the address on the account. Signed J. Hale." },
+        { id: "EV-A-MATCH", label: "Prior-order two-element match", value: "Orders #3102 (12 May 2025), #3340 (3 Jul 2025), and #3611 (18 Sep 2025) share login, device, and shipping address." },
+        { id: "EV-A-DEVICE", label: "Device fingerprint", value: "Disputed checkout used device fp_8c21a9d4e1." },
+        { id: "EV-A-CARDHOLDER", label: "Cardholder answer", value: "Cardholder pressed “I bought this,” then filed this dispute." },
+        { id: "EV-A-AMOUNT", label: "Order amount", value: "$312.40 — above the merchant fight minimum." }
+      ],
+      vetoSignals: [],
+      supportTickets: [],
+      priors: [
+        { orderNumber: "3102", placedAt: "2025-05-12", amount: 148, loginId: "acct_jordan_hale", device: "fp_8c21a9d4e1", ip: "73.25.118.44", address: CEDAR, matches: ["Login","Device","IP","Address"] },
+        { orderNumber: "3340", placedAt: "2025-07-03", amount: 89, loginId: "acct_jordan_hale", device: "fp_8c21a9d4e1", ip: "73.25.118.51", address: CEDAR, matches: ["Login","Device","Address"] },
+        { orderNumber: "3611", placedAt: "2025-09-18", amount: 221, loginId: "acct_jordan_hale", device: "fp_8c21a9d4e1", ip: "73.25.118.44", address: CEDAR, matches: ["Login","Device","IP","Address"] }
+      ],
+      letters: {
+        merchantSummary: "FIGHT order #4821 — $312.40, 94% confidence. Delivered and signed 3 March at the account address; three prior orders match login, device, and shipping.",
+        issuerNarrative: "Representment for order #4821 ($312.40). Delivery confirmation (EV-DELIVER) shows the parcel was delivered and signed for on 3 March 2026 at 1847 Cedar Street, Portland, OR — the address on the customer’s account. Three prior undisputed orders (#3102, #3340, #3611) placed 120–365 days earlier share the same login ID, device fingerprint, and shipping address (EV-MATCH). The device fingerprint on the disputed checkout is fp_8c21a9d4e1 (EV-DEVICE). The cardholder selected “I bought this” (EV-A-CARDHOLDER). We request the dispute be reversed.",
+        customerMessage: "Hi Jordan — your bank filed a dispute on order #4821 ($312.40). Our records show it was delivered to the address on your account on March 3rd and signed for, and that this same account and device placed three previous orders with us (#3102, #3340, #3611). If someone in your household made this purchase, or you'd rather return the item under our policy, just reply here — we can usually resolve it same-day. Otherwise we'll send the delivery records to your bank."
+      }
+    },
+    {
+      id: "B", slug: "9902", title: "Real victim",
+      verdict: "REFUND", confidence: 97, protectedVictim: true,
+      ruleApplied: "Victim veto — REFUND, never fight",
+      ruleWhy: "Three veto signals fired. A veto case can never be classified as a fake dispute. This overrides every score and every other rule. Route to a human with the apology-and-refund message already written.",
+      daysRemaining: 4, deadline: "2026-09-06", sealedAt: "2026-08-30T09:04:02Z",
+      disputed: {
+        orderNumber: "9902", placedAt: "2026-08-26", amount: 189,
+        item: "Ceramic table lamp, bone glaze",
+        customerName: "Riley Chen", shippingAddress: MIAMI, billingAddress: AUSTIN,
+        deviceFingerprint: "fp_new_4b11c0", checkoutIp: "185.234.18.90", checkoutIpCountry: "Poland",
+        avs: "No match", cvv: "Match", cardLast4: "8821", cardFingerprint: "card_new_8821",
+        carrier: "USPS", trackingNumber: "9400111899223000112233",
+        deliveryStatus: "Label created — not yet in transit", deliveredAt: null,
+        cardholderAnswer: "That wasn't me"
+      },
+      cited: [
+        { id: "EV-VETO-cardholder_not_me", label: "Cardholder said it wasn't them", value: "Answer on the cardholder link: “That wasn't me.”" },
+        { id: "EV-VETO-new_address_and_contact_change", label: "New ship-to and a recent phone or email change", value: "Shipping address is new to the account, and the account phone changed within 14 days before the order." },
+        { id: "EV-VETO-country_mismatch", label: "Checkout country has no prior sessions", value: "Checkout IP 185.234.18.90 resolves to Poland. No prior session on this account originated outside the United States." },
+        { id: "EV-VETO-OVERRIDE", label: "Victim veto", value: "A veto signal is present. This case can never be classified as a fake dispute." }
+      ],
+      evidence: [
+        { id: "EV-B-ANSWER", label: "Cardholder answer", value: "Cardholder pressed “That wasn't me.” This fires the victim veto immediately." },
+        { id: "EV-B-ADDR-PHONE", label: "New shipping address + phone change", value: "Shipping address 22 Dockside Walk was created the same day as the order. Account phone changed on 22 August 2026 — four days before the order." },
+        { id: "EV-B-IP", label: "Checkout country mismatch", value: "Checkout IP 185.234.18.90 resolves to Poland. No prior session originated outside the United States." },
+        { id: "EV-B-CARD", label: "Card history", value: "No prior orders on card fingerprint card_new_8821. One older order (#5518) exists on a different card, shipped to Austin." }
+      ],
+      vetoSignals: [
+        { title: "Cardholder said it wasn't them", detail: "Answer on the cardholder link: “That wasn't me.”" },
+        { title: "New ship-to and a recent phone or email change", detail: "Shipping address created the same day as the order. Account phone changed 4 days before the order." },
+        { title: "Checkout country has no prior sessions", detail: "Checkout IP resolves to Poland. Every prior session on this account is in the United States." }
+      ],
+      supportTickets: [],
+      priors: [
+        { orderNumber: "5518", placedAt: "2025-12-02", amount: 72, loginId: "acct_riley_chen", device: "fp_riley_home", ip: "23.114.18.6", address: AUSTIN, matches: [] }
+      ],
+      letters: {
+        merchantSummary: "REFUND order #9902 — $189.00. Protected: possible victim. Three veto signals fired. Do not fight. Apology-and-refund letter is ready.",
+        issuerNarrative: "We are not contesting this dispute. Order #9902 ($189.00) is a protected case. The cardholder selected “That wasn't me” (EV-B-ANSWER). The shipping address was created the same day as the order and the account phone number changed four days earlier (EV-B-ADDR-PHONE). Checkout IP geolocated to Poland; no prior session on this account originated outside the United States (EV-B-IP). We have cancelled the order and refunded $189.00.",
+        customerMessage: "We're sorry — it looks like someone used your card without your permission. We've cancelled order #9902 and refunded $189.00 today. You don't need to send us anything. If you haven't already, ask your bank to replace the card."
+      }
+    },
+    {
+      id: "C", slug: "7130", title: "Merchant at fault",
+      verdict: "REFUND", confidence: 91, protectedVictim: false,
+      ruleApplied: "REFUND — fulfillment error, do not fight",
+      ruleWhy: "The store marked the order fulfilled and generated a tracking number, but the carrier never scanned the label. Tracking shows the parcel never left the warehouse. The customer wrote twice and got no reply for 11 days. Merchant error.",
+      daysRemaining: 8, deadline: "2026-09-10", sealedAt: "2026-08-31T16:41:55Z",
+      disputed: {
+        orderNumber: "7130", placedAt: "2026-08-18", amount: 246,
+        item: "Stoneware dinner set, four-place",
+        customerName: "Priya Shah", shippingAddress: MERCER, billingAddress: MERCER,
+        deviceFingerprint: "fp_priya_12", checkoutIp: "67.250.44.19", checkoutIpCountry: "United States",
+        avs: "Match", cvv: "Match", cardLast4: "1008", cardFingerprint: "card_priya_1008",
+        carrier: "USPS", trackingNumber: "9400111899223456789012",
+        deliveryStatus: "Label created — never scanned", deliveredAt: null,
+        cardholderAnswer: null
+      },
+      cited: [
+        { id: "EV-TRACK", label: "Tracking never delivered", value: "USPS 9400111899223456789012: Label created — never scanned." },
+        { id: "EV-FULFILL", label: "Fulfillment error", value: "Merchant record shows a fulfillment error — marked shipped, but the label was never scanned." },
+        { id: "EV-SUPPORT", label: "Customer messages", value: "Customer emailed twice (20 Aug and 26 Aug). No merchant reply in 11 days." }
+      ],
+      evidence: [
+        { id: "EV-C-SHOPIFY", label: "Store fulfillment record", value: "Shopify marked order #7130 fulfilled on 18 August 2026 and generated tracking 9400111899223456789012." },
+        { id: "EV-C-TRACK", label: "Carrier tracking", value: "USPS never scanned the label. Status remains “label created.” The parcel did not leave the warehouse." },
+        { id: "EV-C-SUPPORT", label: "Unanswered support mail", value: "Customer emailed twice (20 Aug and 26 Aug). No merchant reply in 11 days." }
+      ],
+      vetoSignals: [],
+      supportTickets: [
+        { id: "8841", openedAt: "2026-08-20", subject: "Where is my order?", body: "Hi — order #7130 still shows only a label. Can you tell me when it actually ships?", replied: false },
+        { id: "8903", openedAt: "2026-08-26", subject: "Still nothing. Please refund.", body: "It's been another week with no scan and no reply. Please refund $246.00.", replied: false }
+      ],
+      priors: [],
+      letters: {
+        merchantSummary: "REFUND order #7130 — $246.00, merchant error. Label printed, never scanned. Do not fight.",
+        issuerNarrative: "We are not contesting this dispute. Order #7130 ($246.00) was marked fulfilled in our store and a tracking number was issued (EV-C-SHOPIFY), but the carrier never scanned the label (EV-C-TRACK). The customer wrote and received no reply (EV-C-SUPPORT). This is a fulfillment error on our side. We have refunded $246.00 in full.",
+        customerMessage: "You're right, and we're sorry. Order #7130 never left our warehouse — it was marked shipped in error and the label was never scanned. We've refunded $246.00 in full today. You don't need to do anything with your bank; the refund stands either way."
+      }
+    }
+  ];
+
+  var drafts = {};
+  CASES.forEach(function (c) { drafts[c.slug] = { merchantSummary: c.letters.merchantSummary, issuerNarrative: c.letters.issuerNarrative, customerMessage: c.letters.customerMessage }; });
+
+  var FIGHT_MINIMUM = 50;
+  var REVIEW_THRESHOLD = 2000;
+  var HIGH_VALUE_FLOOR = 250;
+
+  function knownFactsEvidence(facts) {
+    var items = [];
+    if (!isBlank(facts.orderNumber)) {
+      items.push({ id: "EV-ORDER", label: "Order number", value: "#" + facts.orderNumber });
+    }
+    if (facts.amount != null) {
+      items.push({ id: "EV-AMOUNT-FACT", label: "Order amount", value: usd(facts.amount) });
+    }
+    if (!isBlank(facts.orderDate)) {
+      items.push({ id: "EV-DATE", label: "Order date", value: day(facts.orderDate) });
+    }
+    if (!isBlank(facts.reasonCode)) {
+      items.push({ id: "EV-REASON", label: "Chargeback reason", value: facts.reasonCode });
+    }
+    if (!isBlank(facts.cardholderClaim)) {
+      items.push({ id: "EV-CARDHOLDER", label: "Cardholder claim", value: "Cardholder selected “" + facts.cardholderClaim + ".”" });
+    }
+    if (!isBlank(facts.deliveryStatus)) {
+      items.push({ id: "EV-DELIVER-STATUS", label: "Delivery status", value: facts.deliveryStatus });
+    }
+    if (!isUnknown(facts.addressMatch)) {
+      items.push({
+        id: "EV-ADDR-MATCH",
+        label: "Delivery address vs account",
+        value: facts.addressMatch === "yes"
+          ? "Delivery address matches the account address."
+          : "Delivery address does not match the account address."
+      });
+    }
+    if (facts.priorCount != null) {
+      items.push({
+        id: "EV-PRIOR-COUNT",
+        label: "Prior undisputed orders",
+        value: facts.priorCount === 0
+          ? "No prior undisputed orders from this customer."
+          : facts.priorCount + " prior undisputed orders from this customer."
+      });
+    }
+    if (!isUnknown(facts.priorsMatch)) {
+      items.push({
+        id: "EV-PRIOR-MATCH",
+        label: "Prior-order match",
+        value: facts.priorsMatch === "yes"
+          ? "Prior orders match login, device, and shipping address."
+          : "Prior orders do not match login, device, and shipping address."
+      });
+    }
+    if (!isUnknown(facts.contactedSupport)) {
+      items.push({
+        id: "EV-SUPPORT",
+        label: "Support contact",
+        value: facts.contactedSupport === "yes"
+          ? "The customer contacted support before disputing."
+          : "The customer did not contact support before disputing."
+      });
+    }
+    if (!isBlank(facts.checkoutIpCountry)) {
+      items.push({ id: "EV-GEO", label: "Checkout IP country", value: facts.checkoutIpCountry });
+    }
+    if (!isUnknown(facts.contactChanged7d)) {
+      items.push({
+        id: "EV-CONTACT-CHANGE",
+        label: "Address or phone change",
+        value: facts.contactChanged7d === "yes"
+          ? "Shipping address or phone was changed within 7 days of the order."
+          : "Shipping address and phone were not changed within 7 days of the order."
+      });
+    }
+    return items;
+  }
+
+  function missingDecisionFields(facts) {
+    var missing = [];
+    if (facts.amount == null) missing.push("order amount");
+    if (isBlank(facts.reasonCode)) missing.push("chargeback reason code");
+    if (isBlank(facts.cardholderClaim)) missing.push("what the cardholder claimed");
+    if (isBlank(facts.deliveryStatus)) missing.push("delivery status");
+    if (isUnknown(facts.addressMatch)) missing.push("whether the delivery address matches the account address");
+    if (facts.priorCount == null) missing.push("number of prior undisputed orders from this customer");
+    if (isUnknown(facts.priorsMatch)) missing.push("whether prior orders match login, device, and shipping address");
+    if (isUnknown(facts.contactedSupport)) missing.push("whether the customer contacted support before disputing");
+    if (isBlank(facts.checkoutIpCountry)) missing.push("checkout IP country");
+    if (isUnknown(facts.contactChanged7d)) missing.push("whether the shipping address or phone changed within 7 days of the order");
+    return missing;
+  }
+
+  function fightCitations(facts) {
+    var cited = [];
+    var signed = facts.deliveryStatus === "Delivered and signed";
+    var delivered = signed || facts.deliveryStatus === "Delivered no signature";
+    if (delivered) {
+      var deliverValue = signed ? "Delivered and signed." : "Delivered, no signature.";
+      if (facts.addressMatch === "yes") {
+        deliverValue = signed
+          ? "Delivered and signed for at the address on the account."
+          : "Delivered, no signature, at the address on the account.";
+      }
+      cited.push({ id: "EV-DELIVER", label: "Delivery confirmation", value: deliverValue });
+    }
+    if (facts.priorCount != null && facts.priorsMatch === "yes") {
+      cited.push({
+        id: "EV-MATCH",
+        label: "Prior-order two-element match",
+        value: facts.priorCount + " prior undisputed orders share login, device, and shipping address. Device is one of the two required match elements."
+      });
+    }
+    if (facts.amount != null) {
+      cited.push({
+        id: "EV-AMOUNT",
+        label: "Order amount",
+        value: usd(facts.amount) + " — above the merchant fight minimum."
+      });
+    }
+    if (!isBlank(facts.cardholderClaim)) {
+      cited.push({
+        id: "EV-CARDHOLDER",
+        label: "Cardholder answer",
+        value: "Cardholder selected “" + facts.cardholderClaim + ".”"
+      });
+    }
+    var vetoInputsKnown = !isBlank(facts.cardholderClaim) &&
+      !isUnknown(facts.addressMatch) &&
+      !isUnknown(facts.contactChanged7d) &&
+      facts.priorCount != null;
+    if (vetoInputsKnown) {
+      cited.push({
+        id: "EV-VETO-NONE",
+        label: "Victim-veto scan",
+        value: "No veto signal present on this case."
+      });
+    }
+    return cited;
+  }
+
+  /**
+   * Reusable Judge. Same rules as the three seed cases, on whatever facts are known.
+   * Blank / unknown fields are omitted — never inferred.
+   */
+  function judge(facts) {
+    var amount = facts.amount;
+    var priorCount = facts.priorCount;
+    var delivery = facts.deliveryStatus || "";
+    var signed = delivery === "Delivered and signed";
+    var delivered = signed || delivery === "Delivered no signature";
+    var neverGotThere = delivery === "Label never scanned" || delivery === "No tracking" || delivery === "In transit";
+    var addressYes = facts.addressMatch === "yes";
+    var addressNo = facts.addressMatch === "no";
+    var priorsMatchYes = facts.priorsMatch === "yes";
+    var contactYes = facts.contactChanged7d === "yes";
+    var claim = facts.cardholderClaim || "";
+    var reason = facts.reasonCode || "";
+    var vetoSignals = [];
+    var cited = [];
+
+    if (claim === "That wasn't me") {
+      vetoSignals.push({
+        title: "Cardholder said it wasn't them",
+        detail: "Answer on the cardholder link: “That wasn't me.”"
+      });
+      cited.push({
+        id: "EV-VETO-cardholder_not_me",
+        label: "Cardholder said it wasn't them",
+        value: "Answer on the cardholder link: “That wasn't me.”"
+      });
+    }
+    if (addressNo && contactYes) {
+      vetoSignals.push({
+        title: "New ship-to and a recent phone or email change",
+        detail: "Delivery address does not match the account address, and the shipping address or phone was changed within 7 days of the order."
+      });
+      cited.push({
+        id: "EV-VETO-new_address_and_contact_change",
+        label: "New ship-to and a recent phone or email change",
+        value: "Delivery address does not match the account address, and the shipping address or phone was changed within 7 days of the order."
+      });
+    }
+    if (priorCount === 0 && amount != null && amount >= HIGH_VALUE_FLOOR) {
+      vetoSignals.push({
+        title: "No history and an unusually high amount",
+        detail: "No prior undisputed orders on the account, and the order value is unusually high."
+      });
+      cited.push({
+        id: "EV-VETO-no_history_high_value",
+        label: "No history and an unusually high amount",
+        value: "No prior undisputed orders on the account, and the order value is unusually high."
+      });
+    }
+
+    if (vetoSignals.length) {
+      cited.push({
+        id: "EV-VETO-OVERRIDE",
+        label: "Victim veto",
+        value: "A veto signal is present. This case can never be classified as a fake dispute. The override runs before scoring and cannot be reversed by any other evidence."
+      });
+      return {
+        verdict: "REFUND",
+        confidence: Math.min(99, 88 + vetoSignals.length * 3),
+        protectedVictim: true,
+        ruleApplied: "Victim veto — REFUND, never fight",
+        ruleWhy: vetoSignals.length + " veto signal" + (vetoSignals.length === 1 ? "" : "s") + " fired. A veto case can never be classified as a fake dispute. This overrides every score and every other rule. Route to a human with the apology-and-refund message already written.",
+        cited: cited,
+        vetoSignals: vetoSignals
+      };
+    }
+
+    var reasons = [];
+    if (delivery === "No tracking") {
+      reasons.push({
+        id: "EV-TRACK-NONE",
+        label: "No tracking number",
+        value: "Order #" + facts.orderNumber + " has no tracking number."
+      });
+    }
+    if (delivery === "Label never scanned") {
+      reasons.push({
+        id: "EV-TRACK",
+        label: "Tracking never delivered",
+        value: "Carrier tracking: Label never scanned."
+      });
+      reasons.push({
+        id: "EV-FULFILL",
+        label: "Fulfillment error",
+        value: "Merchant record shows a fulfillment error — marked shipped, but the label was never scanned."
+      });
+    }
+    if (delivery === "In transit") {
+      reasons.push({
+        id: "EV-TRACK",
+        label: "Tracking never delivered",
+        value: "Carrier tracking: In transit — not delivered."
+      });
+    }
+    if (delivered && addressNo) {
+      reasons.push({
+        id: "EV-WRONG-ADDR",
+        label: "Delivered to a different address",
+        value: "Delivered to an address that is not the address on the account."
+      });
+    }
+    if (reason === "Duplicate") {
+      reasons.push({
+        id: "EV-DUP",
+        label: "Duplicate charge",
+        value: "Merchant record shows a duplicate charge for order #" + facts.orderNumber + "."
+      });
+    }
+    if (reason === "Subscription canceled") {
+      reasons.push({
+        id: "EV-CANCEL",
+        label: "Cancellation request",
+        value: "Chargeback reason: subscription canceled."
+      });
+    }
+    if (facts.contactedSupport === "yes" && reasons.length) {
+      reasons.push({
+        id: "EV-SUPPORT",
+        label: "Customer messages",
+        value: "The customer contacted support before disputing."
+      });
+    }
+
+    if (reasons.length) {
+      var fulfillment = reasons.some(function (r) {
+        return r.id === "EV-FULFILL" || r.id === "EV-TRACK" || r.id === "EV-TRACK-NONE";
+      });
+      return {
+        verdict: "REFUND",
+        confidence: fulfillment ? 91 : 88,
+        protectedVictim: false,
+        ruleApplied: fulfillment ? "REFUND — fulfillment error, do not fight" : "REFUND — do not fight",
+        ruleWhy: reasons.map(function (r) { return r.value; }).join(" "),
+        cited: reasons,
+        vetoSignals: []
+      };
+    }
+
+    var amountOk = amount != null && amount > FIGHT_MINIMUM;
+    var enoughPriors = priorCount != null && priorCount >= 2;
+    var fightReady = delivered && addressYes && enoughPriors && priorsMatchYes && amountOk;
+
+    if (fightReady) {
+      var confidence = Math.min(99, 88 + priorCount * 2);
+      var why = [];
+      if (addressYes) why.push("Delivery confirmed to the account address.");
+      else why.push(signed ? "Delivery confirmed and signed." : "Delivery confirmed.");
+      why.push(priorCount + " prior undisputed orders share login, device, and shipping address. Device is one of the two required match elements.");
+      var vetoInputsKnown = !isBlank(claim) &&
+        !isUnknown(facts.addressMatch) &&
+        !isUnknown(facts.contactChanged7d) &&
+        priorCount != null;
+      if (vetoInputsKnown) why.push("No victim-veto signal.");
+      why.push("Amount is above the fight minimum.");
+      if (amount > REVIEW_THRESHOLD || confidence < 70) {
+        return {
+          verdict: "HUMAN_REVIEW",
+          confidence: confidence,
+          protectedVictim: false,
+          ruleApplied: "HUMAN_REVIEW — fight conditions met but held for a human",
+          ruleWhy: amount > REVIEW_THRESHOLD
+            ? "Amount is above the merchant review threshold."
+            : "Judge confidence is below 70%.",
+          cited: fightCitations(facts),
+          vetoSignals: []
+        };
+      }
+      return {
+        verdict: "FIGHT",
+        confidence: confidence,
+        protectedVictim: false,
+        ruleApplied: "FIGHT — two-element prior-order match",
+        ruleWhy: why.join(" "),
+        cited: fightCitations(facts),
+        vetoSignals: []
+      };
+    }
+
+    if (delivered && priorCount === 0) {
+      return {
+        verdict: "ASK",
+        confidence: 72,
+        protectedVictim: false,
+        ruleApplied: "ASK — evidence is split",
+        ruleWhy: "Delivered, but there is no prior purchase history to match.",
+        cited: [{ id: "EV-ASK", label: "Split evidence", value: "Delivery is confirmed and there are no prior orders on the account." }],
+        vetoSignals: []
+      };
+    }
+    if (priorCount != null && priorCount > 0 && isBlank(delivery)) {
+      return {
+        verdict: "ASK",
+        confidence: 72,
+        protectedVictim: false,
+        ruleApplied: "ASK — evidence is split",
+        ruleWhy: "Purchase history exists, but delivery is unconfirmed.",
+        cited: [{ id: "EV-ASK", label: "Split evidence", value: "Prior orders exist and delivery is not confirmed." }],
+        vetoSignals: []
+      };
+    }
+
+    var missing = missingDecisionFields(facts);
+    var whyMissing = missing.length
+      ? "Too many fields are unknown to reach a verdict. Missing: " + missing.join("; ") + "."
+      : "The packet does not meet FIGHT, REFUND, or ASK in full.";
+    return {
+      verdict: "HUMAN_REVIEW",
+      confidence: 58,
+      protectedVictim: false,
+      ruleApplied: "HUMAN_REVIEW — no clean fight or refund rule",
+      ruleWhy: whyMissing,
+      cited: [{ id: "EV-HUMAN", label: "Needs a person", value: whyMissing }],
+      vetoSignals: []
+    };
+  }
+
+  function moneyBit(rec) {
+    return rec.disputed.amount != null ? usd(rec.disputed.amount) : null;
+  }
+
+  function orderMoney(rec) {
+    var n = rec.disputed.orderNumber;
+    var m = moneyBit(rec);
+    return m ? "order #" + n + " (" + m + ")" : "order #" + n;
+  }
+
+  function composeLetters(rec) {
+    var facts = rec.facts || {};
+    var d = rec.disputed;
+    var amountStr = moneyBit(rec);
+    var orderRef = orderMoney(rec);
+    var signed = facts.deliveryStatus === "Delivered and signed";
+    var delivered = signed || facts.deliveryStatus === "Delivered no signature";
+    var addressYes = facts.addressMatch === "yes";
+    var priorCount = facts.priorCount;
+    var priorsMatchYes = facts.priorsMatch === "yes";
+    var claim = facts.cardholderClaim;
+    var country = facts.checkoutIpCountry;
+    var contactYes = facts.contactChanged7d === "yes";
+    var addressNo = facts.addressMatch === "no";
+    var supportYes = facts.contactedSupport === "yes";
+    var delivery = facts.deliveryStatus || "";
+
+    function deliverIssuer() {
+      if (!delivered) return "";
+      var cite = rec.cited.some(function (e) { return e.id === "EV-DELIVER"; }) ? " (EV-DELIVER)" : "";
+      if (signed && addressYes) return "Delivery confirmation" + cite + " shows the parcel was delivered and signed for at the address on the customer's account.";
+      if (signed) return "Delivery confirmation" + cite + " shows the parcel was delivered and signed for.";
+      if (addressYes) return "Delivery confirmation" + cite + " shows the parcel was delivered at the address on the customer's account.";
+      return "Delivery confirmation" + cite + " shows the parcel was delivered.";
+    }
+    function priorIssuer() {
+      if (priorCount == null || !priorsMatchYes) return "";
+      var cite = rec.cited.some(function (e) { return e.id === "EV-MATCH"; }) ? " (EV-MATCH)" : "";
+      return countWord(priorCount) + " prior undisputed orders share the same login ID, device fingerprint, and shipping address" + cite + ".";
+    }
+    function claimIssuer() {
+      if (isBlank(claim)) return "";
+      var hit = rec.cited.filter(function (e) { return /CARDHOLDER|cardholder|ANSWER/i.test(e.id); })[0];
+      return "The cardholder selected “" + claim + "”" + (hit ? " (" + hit.id + ")" : "") + ".";
+    }
+
+    if (rec.protectedVictim) {
+      var n = rec.vetoSignals.length;
+      var merchant = joinSentences([
+        "REFUND " + orderRef + ".",
+        "Protected: possible victim.",
+        n ? (n + " veto signal" + (n === 1 ? "" : "s") + " fired.") : "",
+        "Do not fight. Apology-and-refund letter is ready."
+      ]);
+      var issuerBits = [
+        "We are not contesting this dispute. " + orderRef.charAt(0).toUpperCase() + orderRef.slice(1) + " is a protected case."
+      ];
+      if (!isBlank(claim)) issuerBits.push(claimIssuer());
+      if (addressNo && contactYes) {
+        var addrHit = rec.cited.filter(function (e) { return /ADDR-PHONE|contact_change|new_address/i.test(e.id); })[0];
+        issuerBits.push("The delivery address does not match the account, and the shipping address or phone was changed within 7 days of the order" + (addrHit ? " (" + addrHit.id + ")" : "") + ".");
+      }
+      if (!isBlank(country)) {
+        var geoHit = rec.cited.filter(function (e) { return /GEO|IP|country/i.test(e.id); })[0];
+        issuerBits.push("Checkout IP geolocated to " + country + (geoHit ? " (" + geoHit.id + ")" : "") + ".");
+      }
+      issuerBits.push(amountStr ? "We have cancelled the order and refunded " + amountStr + "." : "We have cancelled the order and issued a refund.");
+      var customer = joinSentences([
+        "We're sorry — it looks like someone used your card without your permission.",
+        amountStr
+          ? "We've cancelled order #" + d.orderNumber + " and refunded " + amountStr + " today."
+          : "We've cancelled order #" + d.orderNumber + " and issued a refund today.",
+        "You don't need to send us anything.",
+        "If you haven't already, ask your bank to replace the card."
+      ]);
+      return { merchantSummary: merchant, issuerNarrative: joinSentences(issuerBits), customerMessage: customer };
+    }
+
+    if (rec.verdict === "FIGHT") {
+      var merchantFight = joinSentences([
+        "FIGHT " + orderRef + " — " + rec.confidence + "% confidence.",
+        delivered && addressYes && signed ? "Delivered and signed at the account address." : (delivered && signed ? "Delivered and signed." : (delivered && addressYes ? "Delivered at the account address." : (delivered ? "Delivered." : ""))),
+        priorCount != null && priorsMatchYes ? countWord(priorCount) + " prior orders match login, device, and shipping." : ""
+      ]);
+      var issuerFight = joinSentences([
+        "Representment for " + orderRef + ".",
+        deliverIssuer(),
+        priorIssuer(),
+        claimIssuer(),
+        "We request the dispute be reversed."
+      ]);
+      var customerFight = joinSentences([
+        "Your bank filed a dispute on " + orderRef + ".",
+        delivered && addressYes && signed
+          ? "Our records show it was delivered to the address on your account and signed for."
+          : (delivered && signed
+            ? "Our records show it was delivered and signed for."
+            : (delivered && addressYes
+              ? "Our records show it was delivered to the address on your account."
+              : (delivered ? "Our records show it was delivered." : ""))),
+        priorCount != null && priorsMatchYes
+          ? "This same account and device placed " + countWord(priorCount) + " previous undisputed orders with us."
+          : "",
+        "If someone in your household made this purchase, or you'd rather return the item under our policy, just reply here — we can usually resolve it same-day.",
+        "Otherwise we'll send the delivery records to your bank."
+      ]);
+      return { merchantSummary: merchantFight, issuerNarrative: issuerFight, customerMessage: customerFight };
+    }
+
+    if (rec.verdict === "REFUND") {
+      var labelNever = delivery === "Label never scanned";
+      var noTrack = delivery === "No tracking";
+      var inTransit = delivery === "In transit";
+      var dup = facts.reasonCode === "Duplicate";
+      var canceled = facts.reasonCode === "Subscription canceled";
+      var merchantRefund = joinSentences([
+        "REFUND " + orderRef + (labelNever || noTrack || inTransit ? ", merchant error." : "."),
+        labelNever ? "Label printed, never scanned. Do not fight." : "",
+        noTrack ? "No tracking number. Do not fight." : "",
+        inTransit ? "Not delivered. Do not fight." : "",
+        dup ? "Duplicate charge. Do not fight." : "",
+        canceled ? "Subscription canceled. Do not fight." : "",
+        !labelNever && !noTrack && !inTransit && !dup && !canceled ? "Do not fight." : ""
+      ]);
+      var issuerRefund = [];
+      issuerRefund.push("We are not contesting this dispute. " + orderRef.charAt(0).toUpperCase() + orderRef.slice(1) + (labelNever ? " was marked fulfilled and a tracking number was issued, but the carrier never scanned the label." : "."));
+      if (noTrack) issuerRefund.push("There is no tracking number on this order.");
+      if (inTransit) issuerRefund.push("Carrier tracking shows the parcel is in transit and not delivered.");
+      if (dup) issuerRefund.push("Merchant record shows a duplicate charge.");
+      if (canceled) issuerRefund.push("The chargeback reason is subscription canceled.");
+      if (supportYes) issuerRefund.push("The customer contacted support before disputing.");
+      if (labelNever) issuerRefund.push("This is a fulfillment error on our side.");
+      issuerRefund.push(amountStr ? "We have refunded " + amountStr + " in full." : "We have issued a refund in full.");
+      var customerRefund;
+      if (labelNever) {
+        customerRefund = joinSentences([
+          "You're right, and we're sorry.",
+          "Order #" + d.orderNumber + " never left our warehouse — it was marked shipped in error and the label was never scanned.",
+          amountStr ? "We've refunded " + amountStr + " in full today." : "We've refunded the order in full today.",
+          "You don't need to do anything with your bank; the refund stands either way."
+        ]);
+      } else {
+        customerRefund = joinSentences([
+          "You're right, and we're sorry.",
+          inTransit ? "Order #" + d.orderNumber + " has not been delivered." : "",
+          noTrack ? "Order #" + d.orderNumber + " has no tracking on file." : "",
+          dup ? "This looks like a duplicate charge." : "",
+          canceled ? "This subscription charge should not have stood." : "",
+          amountStr ? "We've refunded " + amountStr + " in full today." : "We've refunded the order in full today.",
+          "You don't need to do anything with your bank; the refund stands either way."
+        ]);
+      }
+      return { merchantSummary: merchantRefund, issuerNarrative: joinSentences(issuerRefund), customerMessage: customerRefund };
+    }
+
+    var missing = (rec.facts ? missingDecisionFields(rec.facts) : []).filter(Boolean);
+    var merchantHold = joinSentences([
+      rec.verdict + " " + orderRef + ".",
+      rec.verdict === "HUMAN_REVIEW" && missing.length
+        ? "Missing: " + missing.join("; ") + "."
+        : rec.ruleApplied + ". " + rec.ruleWhy
+    ]);
+    var issuerHold = joinSentences([
+      (orderRef.charAt(0).toUpperCase() + orderRef.slice(1)) + " is held for a person.",
+      rec.verdict === "ASK" ? rec.ruleWhy : ""
+    ]);
+    var customerHold = joinSentences([
+      "We have your note on " + orderRef + ".",
+      "We will write again when we have the next step."
+    ]);
+    return { merchantSummary: merchantHold, issuerNarrative: issuerHold, customerMessage: customerHold };
+  }
+
+  function nextDeskId() {
+    var n = CASES.filter(function (c) { return c.desk; }).length;
+    return "N" + (n + 1);
+  }
+
+  function uniqueSlug(orderNumber) {
+    var base = String(orderNumber).replace(/[^\w-]/g, "") || "desk";
+    var slug = base;
+    var i = 2;
+    while (bySlug(slug)) {
+      slug = base + "-" + i;
+      i += 1;
+    }
+    return slug;
+  }
+
+  function titleForJudgment(j) {
+    if (j.protectedVictim) return "Possible victim";
+    if (j.verdict === "FIGHT") return "Desk fight";
+    if (j.verdict === "REFUND") return "Desk refund";
+    if (j.verdict === "ASK") return "Split evidence";
+    return "Needs a person";
+  }
+
+  function caseFromFacts(facts) {
+    var judgment = judge(facts);
+    var deadline = addDaysISO(todayISO(), 14);
+    var rec = {
+      id: nextDeskId(),
+      slug: uniqueSlug(facts.orderNumber),
+      title: titleForJudgment(judgment),
+      desk: true,
+      facts: facts,
+      verdict: judgment.verdict,
+      confidence: judgment.confidence,
+      protectedVictim: judgment.protectedVictim,
+      ruleApplied: judgment.ruleApplied,
+      ruleWhy: judgment.ruleWhy,
+      daysRemaining: Math.max(0, daysBetweenISO(todayISO(), deadline)),
+      deadline: deadline,
+      sealedAt: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),
+      disputed: {
+        orderNumber: facts.orderNumber,
+        placedAt: facts.orderDate || "",
+        amount: facts.amount,
+        item: "",
+        customerName: "Desk entry",
+        shippingAddress: "",
+        billingAddress: "",
+        deviceFingerprint: "",
+        checkoutIp: "",
+        checkoutIpCountry: facts.checkoutIpCountry || "",
+        avs: "",
+        cvv: "",
+        cardLast4: "",
+        cardFingerprint: "",
+        carrier: "",
+        trackingNumber: "",
+        deliveryStatus: facts.deliveryStatus || "",
+        deliveredAt: "",
+        cardholderAnswer: facts.cardholderClaim || ""
+      },
+      cited: judgment.cited,
+      evidence: knownFactsEvidence(facts),
+      vetoSignals: judgment.vetoSignals,
+      supportTickets: [],
+      priors: []
+    };
+    rec.letters = composeLetters(rec);
+    return rec;
+  }
+
+  function bySlug(slug) {
+    for (var i = 0; i < CASES.length; i++) if (CASES[i].slug === slug) return CASES[i];
+    return null;
+  }
+  function queue() {
+    return CASES.slice().sort(function (a, b) {
+      if (a.daysRemaining !== b.daysRemaining) return a.daysRemaining - b.daysRemaining;
+      return b.disputed.amount - a.disputed.amount;
+    });
+  }
+  function go(path) {
+    location.hash = path;
+  }
+  function parseHash() {
+    var h = (location.hash || "#/").replace(/^#/, "");
+    if (h === "/new") return { view: "new" };
+    var letters = h.match(/^\/cases\/([^/]+)\/letters$/);
+    if (letters) return { view: "letters", slug: letters[1] };
+    var cas = h.match(/^\/cases\/([^/]+)$/);
+    if (cas) return { view: "case", slug: cas[1] };
+    return { view: "queue" };
+  }
+
+  function chip(v) { return '<span class="verdict-chip ' + v + '">' + v + "</span>"; }
+  function kv(label, value) { return "<dt>" + esc(label) + "</dt><dd>" + value + "</dd>"; }
+
+  function shell(title, current, inner) {
+    document.title = title;
+    return (
+      '<div class="shell">' +
+        '<header class="topbar">' +
+          '<a class="brand" data-go="#/"><span class="brand-name">Casefile</span><span class="brand-meta">Vanghtech · chargeback desk</span></a>' +
+          '<nav class="top-nav"><a data-go="#/" class="' + (current === "queue" ? "current" : "") + '">Queue</a></nav>' +
+        "</header>" +
+        '<main class="page">' + inner + "</main>" +
+      "</div>"
+    );
+  }
+
+  function rowCols(item) {
+    return (
+      "<div><span class=\"col-kicker\">Case " + item.id + "</span><span class=\"col-value serif\">#" + item.disputed.orderNumber + "</span></div>" +
+      "<div><span class=\"col-kicker\">" + esc(item.disputed.customerName) + "</span><span class=\"col-value\">" + esc(item.title) + "</span></div>" +
+      "<div><span class=\"col-kicker\">Verdict</span><span class=\"col-value\">" + chip(item.verdict) + "</span></div>" +
+      "<div><span class=\"col-kicker\">Confidence</span><span class=\"col-value\">" + item.confidence + "%</span></div>" +
+      "<div><span class=\"col-kicker\">Amount</span><span class=\"col-value\">" + (item.disputed.amount != null ? usd(item.disputed.amount) : "—") + "</span></div>" +
+      "<div><span class=\"col-kicker\">Days left</span><span class=\"col-value\">" + item.daysRemaining + "</span></div>"
+    );
+  }
+
+  function renderQueue() {
+    var items = queue();
+    var dollars = items.reduce(function (s, c) { return s + (c.disputed.amount || 0); }, 0);
+    var prot = items.filter(function (c) { return c.protectedVictim; })[0];
+    var rows = items.map(function (item) {
+      if (item.protectedVictim) {
+        return (
+          '<a class="queue-row protected" data-go="#/cases/' + item.slug + '">' +
+            '<div class="protected-stamp"><b>Protected: possible victim</b><em>' + item.vetoSignals.length + " veto signals · never score as a fake dispute</em></div>" +
+            '<div class="protected-inner">' + rowCols(item) + "</div>" +
+          "</a>"
+        );
+      }
+      return '<a class="queue-row" data-go="#/cases/' + item.slug + '">' + rowCols(item) + "</a>";
+    }).join("");
+    var alert = prot
+      ? '<a class="queue-alert" data-go="#/cases/' + prot.slug + '"><div><span>Do not fight · human review</span><strong>Protected: possible victim</strong></div><span>Order #' + prot.disputed.orderNumber + (prot.disputed.amount != null ? " · " + usd(prot.disputed.amount) : "") + "</span></a>"
+      : "";
+    return shell("Casefile — Queue", "queue",
+      '<div class="page-head"><div><h1>Queue</h1><p class="lede">Open cases, deadline first, then dollars.</p></div>' +
+      '<div class="page-head-actions"><a class="btn" data-go="#/new">New Case</a>' +
+      '<div class="stats"><div><b>' + items.length + "</b>open</div><div><b>" + usd(dollars) + "</b>at risk</div></div></div></div>" +
+      alert + '<div class="queue">' + rows + "</div>"
+    );
+  }
+
+  function matchBlock(rec) {
+    if (rec.desk) {
+      var facts = rec.facts || {};
+      var cards = "";
+      if (!isBlank(facts.deliveryStatus)) {
+        var fault = facts.deliveryStatus === "Label never scanned" || facts.deliveryStatus === "No tracking";
+        cards += '<article class="order-card' + (fault ? " fault" : (facts.deliveryStatus.indexOf("Delivered") === 0 ? " disputed" : "")) + '"><h3><span>Delivery</span><span>On file</span></h3><p>' + esc(facts.deliveryStatus) + "</p>" +
+          (!isUnknown(facts.addressMatch)
+            ? "<p>" + (facts.addressMatch === "yes" ? "Address matches the account." : "Address does not match the account.") + "</p>"
+            : "") +
+          "</article>";
+      }
+      if (facts.priorCount != null) {
+        cards += '<article class="order-card"><h3><span>Prior orders</span><span>' + facts.priorCount + "</span></h3>" +
+          "<p>" + (facts.priorCount === 0 ? "No prior undisputed orders." : facts.priorCount + " prior undisputed orders from this customer.") + "</p>" +
+          (!isUnknown(facts.priorsMatch)
+            ? '<div class="chips">' + (facts.priorsMatch === "yes"
+              ? '<span class="chip">Login match</span><span class="chip">Device match</span><span class="chip">Address match</span>'
+              : '<span class="chip miss">No login/device/address match</span>') + "</div>"
+            : "") +
+          "</article>";
+      }
+      if (!cards) return "";
+      var note = "";
+      if (facts.deliveryStatus === "Label never scanned") note = "Label never scanned. REFUND — merchant error.";
+      else if (facts.priorsMatch === "yes" && facts.priorCount != null && facts.priorCount >= 2) note = "Prior orders share login, device, and address. Device is one of the two required elements.";
+      else if (facts.priorsMatch === "no") note = "No two-element match on the priors that were entered.";
+      return (
+        '<section class="match-block"><h2>What was entered</h2><div class="match-grid">' + cards + "</div>" +
+        (note ? '<p class="note">' + esc(note) + "</p>" : "") +
+        "</section>"
+      );
+    }
+    if (rec.id === "C") {
+      return (
+        '<section class="match-block"><h2>Fulfillment vs carrier</h2><div class="match-grid">' +
+          '<article class="order-card disputed"><h3><span>Store record</span><span>Shopify</span></h3><p>Marked fulfilled 18 Aug 2026.</p><p>Tracking generated: ' + esc(rec.disputed.trackingNumber) + "</p></article>" +
+          '<article class="order-card fault"><h3><span>Carrier record</span><span>USPS</span></h3><p>Label created. Never scanned.</p><p>The parcel never left the warehouse.</p></article>' +
+        '</div><p class="note">History exists, but delivery never happened. REFUND — merchant error.</p></section>'
+      );
+    }
+    if (rec.id === "B") {
+      var prior = rec.priors[0];
+      return (
+        '<section class="match-block"><h2>Disputed order vs account history</h2><div class="match-grid">' +
+          '<article class="order-card disputed"><h3><span>#' + rec.disputed.orderNumber + "</span><span>Disputed</span></h3>" +
+            "<p>" + day(rec.disputed.placedAt) + " · " + usd(rec.disputed.amount) + "</p>" +
+            "<p>Ship-to created same day · Miami</p><p>Card " + esc(rec.disputed.cardFingerprint) + " — first time seen</p>" +
+            "<p>IP " + esc(rec.disputed.checkoutIp) + " · Poland</p>" +
+            '<div class="chips"><span class="chip miss">No match on this card</span><span class="chip miss">New address</span><span class="chip miss">New country</span></div></article>' +
+          (prior
+            ? '<article class="order-card"><h3><span>#' + prior.orderNumber + "</span><span>Prior · other card</span></h3>" +
+              "<p>" + day(prior.placedAt) + " · " + usd(prior.amount) + "</p><p>" + esc(prior.address) + "</p>" +
+              "<p>IP " + esc(prior.ip) + " · United States</p>" +
+              '<div class="chips"><span class="chip miss">Different card</span><span class="chip miss">Different address</span><span class="chip miss">Different device</span></div></article>'
+            : "") +
+        '</div><p class="note">No two-element match. Veto already decided this — the comparison is here so the miss is obvious.</p></section>'
+      );
+    }
+    var cards = rec.priors.map(function (o) {
+      return '<article class="order-card"><h3><span>#' + o.orderNumber + "</span><span>Undisputed · in window</span></h3>" +
+        "<p>" + day(o.placedAt) + " · " + usd(o.amount) + "</p><p>" + esc(o.address) + "</p>" +
+        "<p>Login " + esc(o.loginId) + "</p><p>Device " + esc(o.device) + "</p><p>IP " + esc(o.ip) + "</p>" +
+        '<div class="chips">' + o.matches.map(function (m) { return '<span class="chip">' + m + " match</span>"; }).join("") + "</div></article>";
+    }).join("");
+    return (
+      '<section class="match-block"><h2>Disputed order vs matching priors</h2><div class="match-grid">' +
+        '<article class="order-card disputed"><h3><span>#' + rec.disputed.orderNumber + "</span><span>Disputed</span></h3>" +
+          "<p>" + day(rec.disputed.placedAt) + " · " + usd(rec.disputed.amount) + "</p>" +
+          "<p>" + esc(rec.disputed.shippingAddress) + "</p><p>Device " + esc(rec.disputed.deviceFingerprint) + "</p>" +
+          "<p>IP " + esc(rec.disputed.checkoutIp) + "</p></article>" + cards +
+      '</div><p class="note">Three prior orders in the 120–365 day window share login, device, and address. Device is one of the two required elements.</p></section>'
+    );
+  }
+
+  function renderCase(rec) {
+    if (!rec) return shell("Casefile — Case", "queue", '<div class="empty">No case with that order. <a data-go="#/">Back to queue</a></div>');
+    var d = rec.disputed;
+    var amountLine = d.amount != null ? usd(d.amount) : "";
+    var titleBits = [d.customerName, amountLine, rec.title].filter(function (x) { return x && String(x).trim(); });
+    var veto = rec.protectedVictim
+      ? '<section class="protected-banner"><p class="eyebrow">Highest-priority rule · one-directional veto</p><h2>Protected: possible victim</h2>' +
+        "<p>" + rec.vetoSignals.length + " veto signals fired. This case cannot be scored as a fake dispute, regardless of any other evidence. Refund path. Do not represent.</p>" +
+        '<div class="veto-list">' + rec.vetoSignals.map(function (s) {
+          return '<article class="veto-card"><b>' + esc(s.title) + "</b><p>" + esc(s.detail) + "</p></article>";
+        }).join("") + "</div></section>"
+      : "";
+    var missingBanner = rec.verdict === "HUMAN_REVIEW" && rec.desk
+      ? '<p class="missing-note">' + esc(rec.ruleWhy) + "</p>"
+      : "";
+    var tickets = rec.supportTickets.map(function (t) {
+      return '<article class="ticket"><span class="meta">Ticket #' + t.id + " · " + day(t.openedAt) + " · " + (t.replied ? "Replied" : "No reply") + "</span><b>" + esc(t.subject) + "</b><p>" + esc(t.body) + "</p></article>";
+    }).join("");
+    var sealedKv = rec.desk
+      ? [
+          d.item ? kv("Item", esc(d.item)) : "",
+          d.placedAt ? kv("Placed", day(d.placedAt)) : "",
+          d.checkoutIpCountry ? kv("Checkout IP country", esc(d.checkoutIpCountry)) : "",
+          d.deliveryStatus ? kv("Delivery", esc(d.deliveryStatus)) : "",
+          d.cardholderAnswer ? kv("Cardholder", esc(d.cardholderAnswer)) : ""
+        ].join("")
+      : (
+        kv("Item", esc(d.item)) + kv("Placed", day(d.placedAt)) + kv("Ship-to", esc(d.shippingAddress)) + kv("Bill-to", esc(d.billingAddress)) +
+        kv("Device", esc(d.deviceFingerprint)) + kv("Checkout IP", esc(d.checkoutIp) + " · " + esc(d.checkoutIpCountry)) +
+        kv("AVS / CVV", d.avs + " / " + d.cvv) + kv("Card", "•••• " + d.cardLast4 + " · " + esc(d.cardFingerprint)) +
+        kv("Tracking", (d.carrier || "—") + " " + (d.trackingNumber || "none") + " · " + esc(d.deliveryStatus)) +
+        kv("Cardholder", esc(d.cardholderAnswer || "No answer on file"))
+      );
+    return shell("Casefile — Order #" + d.orderNumber, "queue",
+      '<p class="crumb"><a data-go="#/">Queue</a> / Case ' + rec.id + "</p>" +
+      '<div class="case-title"><div><h1>Order #' + d.orderNumber + "</h1><p>" + esc(titleBits.join(" · ")) + "</p></div>" +
+      '<div class="case-actions">' + chip(rec.verdict) + '<a class="btn primary" data-go="#/cases/' + rec.slug + '/letters">Letters</a></div></div>' +
+      veto + missingBanner +
+      '<div class="grid-2"><section class="panel"><h2>Verdict</h2><dl class="kv">' +
+        kv("Decision", "<strong>" + rec.verdict + "</strong>" + (rec.protectedVictim ? " · Protected: possible victim" : "")) +
+        kv("Confidence", rec.confidence + "%") +
+        kv("Rule", esc(rec.ruleApplied)) +
+        kv("Why", esc(rec.ruleWhy)) +
+        kv("Deadline", day(rec.deadline) + " · " + rec.daysRemaining + " days left") +
+      "</dl></section>" +
+      '<section class="panel"><h2>Cited evidence</h2><ol class="cite-list">' +
+        rec.cited.map(function (e) {
+          return "<li><span class=\"evidence-id cited\">" + e.id + "</span><strong>" + esc(e.label) + "</strong><div>" + esc(e.value) + "</div></li>";
+        }).join("") +
+      "</ol></section></div>" +
+      '<section class="panel"><div class="seal-row"><span class="seal-mark">Sealed packet · v1</span><span>' + rec.sealedAt + " · corrections create a new version</span></div><h2>Evidence</h2>" +
+      (sealedKv ? '<dl class="kv">' + sealedKv + "</dl>" : "") +
+      '<ul class="evidence-list" style="margin-top:16px">' +
+        rec.evidence.map(function (e) {
+          return "<li><span class=\"evidence-id\">" + e.id + "</span><strong>" + esc(e.label) + "</strong><div>" + esc(e.value) + "</div></li>";
+        }).join("") +
+      "</ul></section>" +
+      matchBlock(rec) +
+      (tickets ? '<div class="tickets">' + tickets + "</div>" : "")
+    );
+  }
+
+  function field(name, label, inner, wide) {
+    return '<div class="field' + (wide ? " wide" : "") + '"><label for="' + name + '">' + label + "</label>" + inner + "</div>";
+  }
+  function textInput(name, type) {
+    return '<input id="' + name + '" name="' + name + '" type="' + (type || "text") + '" />';
+  }
+  function selectInput(name, options) {
+    var opts = ['<option value="">—</option>'].concat(options.map(function (o) {
+      var value = typeof o === "string" ? o : o.value;
+      var label = typeof o === "string" ? o : o.label;
+      return '<option value="' + esc(value) + '">' + esc(label) + "</option>";
+    }));
+    return '<select id="' + name + '" name="' + name + '">' + opts.join("") + "</select>";
+  }
+  var TRI = [
+    { value: "yes", label: "Yes" },
+    { value: "no", label: "No" },
+    { value: "unknown", label: "Unknown" }
+  ];
+
+  function renderNewCase() {
+    return shell("Casefile — New Case", "queue",
+      '<p class="crumb"><a data-go="#/">Queue</a> / New Case</p>' +
+      '<div class="page-head"><div><h1>New Case</h1><p class="lede">Enter what you know. Leave the rest blank — Judge will not invent it.</p></div></div>' +
+      '<form id="new-case-form" class="form-panel" autocomplete="off">' +
+        '<div class="form-grid">' +
+          field("orderNumber", "Order number", textInput("orderNumber")) +
+          field("amount", "Order amount", '<input id="amount" name="amount" type="number" min="0" step="0.01" />') +
+          field("orderDate", "Order date", textInput("orderDate", "date")) +
+          field("reasonCode", "Chargeback reason code", selectInput("reasonCode", [
+            "Fraudulent", "Product not received", "Product unacceptable", "Subscription canceled", "Duplicate"
+          ])) +
+          field("cardholderClaim", "What the cardholder claimed", selectInput("cardholderClaim", [
+            "That wasn't me", "I never got it", "Not as described", "I bought this"
+          ])) +
+          field("deliveryStatus", "Delivery status", selectInput("deliveryStatus", [
+            "Delivered and signed", "Delivered no signature", "In transit", "Label never scanned", "No tracking"
+          ])) +
+          field("addressMatch", "Delivery address matches account address", selectInput("addressMatch", TRI)) +
+          field("priorCount", "Number of prior undisputed orders from this customer", '<input id="priorCount" name="priorCount" type="number" min="0" step="1" />') +
+          field("priorsMatch", "Do prior orders match login, device, and shipping address", selectInput("priorsMatch", TRI), true) +
+          field("contactedSupport", "Did the customer contact support before disputing", selectInput("contactedSupport", TRI), true) +
+          field("checkoutIpCountry", "Checkout IP country", textInput("checkoutIpCountry")) +
+          field("contactChanged7d", "Was the shipping address or phone changed within 7 days of the order", selectInput("contactChanged7d", TRI), true) +
+        "</div>" +
+        '<div class="form-actions"><button class="btn primary" type="submit">Judge this case</button><a class="btn" data-go="#/">Cancel</a></div>' +
+      "</form>"
+    );
+  }
+
+  function readNewCaseFacts(form) {
+    function val(name) {
+      var el = form.elements[name];
+      return el ? String(el.value || "").trim() : "";
+    }
+    function num(name) {
+      var v = val(name);
+      if (v === "") return null;
+      var n = Number(v);
+      return isFinite(n) ? n : null;
+    }
+    var orderNumber = val("orderNumber") || ("desk-" + Date.now().toString().slice(-6));
+    return {
+      orderNumber: orderNumber,
+      amount: num("amount"),
+      orderDate: val("orderDate"),
+      reasonCode: val("reasonCode"),
+      cardholderClaim: val("cardholderClaim"),
+      deliveryStatus: val("deliveryStatus"),
+      addressMatch: val("addressMatch"),
+      priorCount: num("priorCount"),
+      priorsMatch: val("priorsMatch"),
+      contactedSupport: val("contactedSupport"),
+      checkoutIpCountry: val("checkoutIpCountry"),
+      contactChanged7d: val("contactChanged7d")
+    };
+  }
+
+  function submitNewCase(form) {
+    var rec = caseFromFacts(readNewCaseFacts(form));
+    CASES.push(rec);
+    drafts[rec.slug] = {
+      merchantSummary: rec.letters.merchantSummary,
+      issuerNarrative: rec.letters.issuerNarrative,
+      customerMessage: rec.letters.customerMessage
+    };
+    go("#/cases/" + rec.slug);
+  }
+
+  function letterCard(key, title, hint, value) {
+    var hits = bannedHits(value);
+    var blocked = hits.length > 0;
+    return (
+      '<section class="letters-card"><header><h2>' + title + "</h2>" +
+        '<button class="btn" type="button" data-copy="' + key + '"' + (blocked ? " disabled" : "") + ">Copy</button></header>" +
+        '<p class="hint">' + hint + "</p>" +
+        '<textarea class="' + (key === "merchantSummary" ? "merchant" : "") + '" data-letter="' + key + '">' + esc(value) + "</textarea>" +
+        (blocked ? '<p class="block-note">Blocked before display. Banned word' + (hits.length > 1 ? "s" : "") + ": " + hits.join(", ") + ". The block is logged.</p>" : "") +
+      "</section>"
+    );
+  }
+
+  function renderLetters(rec) {
+    if (!rec) return renderCase(null);
+    var d = drafts[rec.slug];
+    return shell("Casefile — Letters #" + rec.disputed.orderNumber, "queue",
+      '<p class="crumb"><a data-go="#/">Queue</a> / <a data-go="#/cases/' + rec.slug + '">Case ' + rec.id + "</a> / Letters</p>" +
+      "<div><h1>Letters</h1><p class=\"lede\">Voice for order #" + rec.disputed.orderNumber + " · " + rec.verdict +
+        (rec.protectedVictim ? " · Protected: possible victim" : "") + "</p></div>" +
+      '<div class="letters-list">' +
+        letterCard("merchantSummary", "Merchant summary", "Two lines for the desk. What to do, and why.", d.merchantSummary) +
+        letterCard("issuerNarrative", "Issuer narrative", "Formal evidence letter. Every claim cites a sealed item.", d.issuerNarrative) +
+        letterCard("customerMessage", "Customer message", "What the merchant can send. Warm for victims. Firm when the goods arrived.", d.customerMessage) +
+      "</div>"
+    );
+  }
+
+  function render() {
+    var r = parseHash();
+    var rec = r.slug ? bySlug(r.slug) : null;
+    var html = r.view === "letters" ? renderLetters(rec) : r.view === "case" ? renderCase(rec) : r.view === "new" ? renderNewCase() : renderQueue();
+    document.getElementById("app").innerHTML = html;
+  }
+
+  document.getElementById("app").addEventListener("submit", function (e) {
+    var form = e.target.closest("#new-case-form");
+    if (!form) return;
+    e.preventDefault();
+    submitNewCase(form);
+  });
+
+  document.getElementById("app").addEventListener("click", function (e) {
+    var goEl = e.target.closest("[data-go]");
+    if (goEl) {
+      e.preventDefault();
+      go(goEl.getAttribute("data-go"));
+      return;
+    }
+    var copyEl = e.target.closest("[data-copy]");
+    if (copyEl) {
+      var rec = bySlug(parseHash().slug);
+      var key = copyEl.getAttribute("data-copy");
+      var text = drafts[rec.slug][key];
+      if (bannedHits(text).length) return;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text);
+      }
+      copyEl.textContent = "Copied";
+      setTimeout(function () { copyEl.textContent = "Copy"; }, 1600);
+    }
+  });
+
+  document.getElementById("app").addEventListener("input", function (e) {
+    var ta = e.target.closest("[data-letter]");
+    if (!ta) return;
+    var rec = bySlug(parseHash().slug);
+    drafts[rec.slug][ta.getAttribute("data-letter")] = ta.value;
+    var hits = bannedHits(ta.value);
+    var card = ta.closest(".letters-card");
+    var note = card.querySelector(".block-note");
+    var btn = card.querySelector("[data-copy]");
+    if (hits.length) {
+      btn.disabled = true;
+      if (!note) {
+        note = document.createElement("p");
+        note.className = "block-note";
+        card.appendChild(note);
+      }
+      note.textContent = "Blocked before display. Banned word" + (hits.length > 1 ? "s" : "") + ": " + hits.join(", ") + ". The block is logged.";
+      console.info("[voice:block]", "banned_word", hits);
+    } else {
+      btn.disabled = false;
+      if (note) note.remove();
+    }
+  });
+
+  window.addEventListener("hashchange", render);
+  if (!location.hash) location.hash = "#/";
+  render();
+})();
+  </script>
+</body>
+</html>
